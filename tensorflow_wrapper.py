@@ -7,14 +7,16 @@ from collections import Iterable
 
 # Global
 sess = None
-
+_coord, _threads = None, None
 
 
 # aliases
 tfloat = tf.float32
+nfloat = np.float32
 var = tf.Variable
 add = tf.add
 mul = tf.matmul
+sqr = tf.square
 equal = tf.equal
 relu = tf.nn.relu
 sigmoid = tf.nn.sigmoid
@@ -36,17 +38,19 @@ dropout = tf.nn.dropout
 rnncell = tf.nn.rnn_cell.BasicRNNCell
 lstmcell = tf.nn.rnn_cell.BasicLSTMCell
 multicell = tf.nn.rnn_cell.MultiRNNCell
+str_producer = tf.train.string_input_producer
+batch = tf.train.batch
 
 
 def ph(shape=None, name=None, dt=tfloat):
     return tf.placeholder(dtype=dt, shape=shape, name=name)
 
 
-def varnorm(shape, stddev=None):
+def varnorm(shape, stddev=None, name=None):
     if stddev:
-        return var(tf.random_normal(shape, stddev=stddev))
+        return var(tf.random_normal(shape, stddev=stddev), name=name)
     else:
-        return var(tf.random_normal(shape)) # defeault 1.0
+        return var(tf.random_normal(shape), name=name) # defeault 1.0
 
 
 def varuni(shape, minval=-1.0, maxval=1.0, dtype=tfloat, name=None):
@@ -74,8 +78,9 @@ def reduce(funs, *args):
     return functools.reduce(lambda x, y: next(it, funs[0])(x, y), args)
 
 
-def open(restore=False, ckpt_dir=None):
-    global sess
+# if queue_runner, you must call close()
+def open(restore=False, ckpt_dir=None, queue_runner=False):
+    global sess, _coord, _threads
     sess, saver = tf.Session(), None
 
     if not restore:
@@ -90,7 +95,16 @@ def open(restore=False, ckpt_dir=None):
         else:
             sess.run(tf.global_variables_initializer())
 
+    if queue_runner:
+        _coord = tf.train.Coordinator()
+        _threads = tf.train.start_queue_runners(sess, _coord)
+
     return sess, saver
+
+
+def close():
+    _coord.request_stop()
+    _coord.join()
 
 
 def run(fetches, dic=None, opt=None, mrun=None):
@@ -120,6 +134,14 @@ def sigmoid_cross_entropy(labels, logits):
 def load_csv(fname):
     return np.loadtxt(fname, delimiter=',', dtype='float32')
     #return np.loadtxt(fname, delimiter=',', unpack=True, dtype='float32') # unpack -> transposed
+
+
+def read_csvfiles(filenames, rec):
+    filename_queue = tf.train.string_input_producer(filenames, shuffle=False, name='filename_queue')
+    reader = tf.TextLineReader()
+    key, value = reader.read(filename_queue)
+    data = tf.decode_csv(value, record_defaults=rec)
+    return data
 
 
 def file_writer(log_dir):
