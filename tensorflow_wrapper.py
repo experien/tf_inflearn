@@ -12,6 +12,7 @@ _coord, _threads = None, None
 
 # aliases
 tfloat = tf.float32
+tint = tf.int32
 nfloat = np.float32
 var = tf.Variable
 add = tf.add
@@ -20,7 +21,7 @@ sqr = tf.square
 equal = tf.equal
 relu = tf.nn.relu
 sigmoid = tf.nn.sigmoid
-softmax = tf.nn.softmax # 전체 합을 1로 만듦
+softmax = tf.nn.softmax # 전체 합을 1로 만듦(확률)
 argmax = tf.argmax  # 가장 큰 값의 인덱스
 rmean = tf.reduce_mean
 rsum = tf.reduce_sum
@@ -40,6 +41,14 @@ lstmcell = tf.nn.rnn_cell.BasicLSTMCell
 multicell = tf.nn.rnn_cell.MultiRNNCell
 str_producer = tf.train.string_input_producer
 batch = tf.train.batch
+one_hot = tf.one_hot
+histo = tf.summary.histogram
+scalar = tf.summary.scalar
+getvar = tf.get_variable
+
+
+def varxavier(name, shape=None):
+    return tf.get_variable(name, shape, initializer=tf.contrib.layers.xavier_initializer())
 
 
 def ph(shape=None, name=None, dt=tfloat):
@@ -157,6 +166,7 @@ def rnn(cell, input):
     return tf.nn.dynamic_rnn(cell, input ,dtype=tfloat)
 
 
-def accuracy(p, t, dic):
-    acc = rmean(cast(equal(p, t), tfloat))
+def accuracy(p, label, dic):
+    acc = rmean(cast(equal(p, label), tfloat))
     return run(acc * 100, dic)
+
